@@ -2,34 +2,37 @@ name: Build Windows EXE
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ main ]       # ▶ 當有 commit push 到 main 分支時觸發
+  workflow_dispatch:        # ▶ 也可手動進入 Actions 頁面觸發
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-latest  # ▶ 指定執行環境為最新的 Windows Runner
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout repository       # ▶ 下載當前倉庫程式碼
+        uses: actions/checkout@v3       #   - uses: 指定要呼叫的 action
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Set up Python             # ▶ 安裝並啟用 Python
+        uses: actions/setup-python@v4  
         with:
-          python-version: '3.11'
+          python-version: '3.11'        #   - with: action 的設定參數
 
-      - name: Install dependencies
+      - name: Install dependencies      # ▶ 安裝專案相依套件
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          python -m pip install --upgrade pip   #   • 升級 pip
+          pip install -r requirements.txt       #   • 安裝 requirements.txt
+          pip install pyinstaller               #   • 安裝 PyInstaller
 
-      - name: Package app.py into EXE
+      - name: Package app.py into EXE    # ▶ 用 PyInstaller 打包成單檔 exe
         run: |
-          pyinstaller --onefile --noconsole app.py
+          pyinstaller \
+            --onefile      # 單一執行檔
+            --noconsole    # 打包時隱藏主控台視窗
+            app.py
 
-      - name: Upload EXE artifact
+      - name: Upload EXE artifact       # ▶ 上傳打包完成的 exe
         uses: actions/upload-artifact@v4
         with:
-          name: projection-app-exe
-          path: dist/app.exe
+          name: projection-app-exe       #   • artifact 名稱
+          path: dist/app.exe             #   • 指定要上傳的檔案路徑
