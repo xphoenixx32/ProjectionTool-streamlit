@@ -1,0 +1,58 @@
+name: Build Windows EXE
+
+# 監聽 push 到 main 或手動觸發
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    # 使用最新的 Windows Runner
+    runs-on: windows-latest
+
+    steps:
+      # 1. 先把程式碼拉下來
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2. 快取 pip 套件，加速後續執行
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # 3. 安裝 Python
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # 4. 安裝專案依賴
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # 如果你沒把 pyinstaller 放到 requirements.txt 裡，這裡再安裝一次
+          pip install pyinstaller
+
+      # 5. （可選）自訂 .spec 檔：如果你已經在 repo 放了 app.spec，可直接使用它
+      # - name: Use existing spec file
+      #   run: |
+      #     pyinstaller app.spec
+
+      # 6. 打包 EXE
+      - name: Build EXE with PyInstaller
+        run: |
+          # --onefile: 單一檔案；--noconsole: 不跳黑窗
+          pyinstaller --onefile --noconsole app.py
+
+      # 7. 上傳打包後的 exe 當作 Artifact，方便下載
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: projection-automation-app-win
+          path: dist/app.exe
