@@ -1,6 +1,6 @@
 # Projection Automation Tool
 
-A powerful Streamlit application for analyzing business metrics and creating projections based on historical data, designed for business analysts and data scientists.
+A Streamlit application that analyzes business metrics and creates projections based on historical data, allowing for easy visualization of various metrics and their change differences.
 
 ## Features
 
@@ -18,12 +18,36 @@ The app is organized into three main sections accessible from the sidebar:
 - **Special Day Type Analysis**: Visualize monthly and quarterly uplift effects from special day types compared to business-as-usual days
 - **Manual Projection Tool**: Create custom projections by adjusting factors like Lunar New Year effect, BAU MoM growth, and special day uplifts
 
+## App Workflow
+
+```mermaid
+flowchart TD
+    A[Start: Open App] --> B[Upload Data]
+    B --> C{Data Valid?}
+    C -- No --> D[Show Error / Prompt Correction]
+    C -- Yes --> E[Preview Data]
+    E --> F[Select 'Projection Analysis']
+    F --> G[Select Year for Analysis]
+    G --> H{Choose Analysis Step}
+    H -- Yearly Trend --> I[View Yearly Trend Charts]
+    H -- Lunar New Year Effect --> J[Analyze LNY Impact]
+    H -- BAU MoM --> K[View MoM Growth]
+    H -- Monthly Uplift --> L[Analyze Monthly Uplift]
+    H -- Quarterly Uplift --> M[Analyze Quarterly Uplift]
+    I & J & K & L & M --> N[Export/Review Results]
+    N --> O[Select 'Manual Projection']
+    O --> P[Input Baseline and Factors]
+    P --> Q[Adjust Parameters]
+    Q --> R[See Custom Projection Result]
+    R --> S[Export or Finish]
+```
+
 ## Data Format Requirements
 
 Your CSV file should include the following columns:
 - `grass_date`: Date in YYYY-MM-DD format
 - `date_type`: Category of day (e.g., 'bau', '1st_spike', '2nd_spike', '3rd_spike', 'FSS')
-- `metrics`: Numerical values (can be GMV, Orders, Login User Count, etc.)
+- `metrics`: Numerical values (fixed column name)
 
 ## How to Run
 
@@ -47,10 +71,17 @@ Your CSV file should include the following columns:
 
 2. **Projection Analysis Tab**:
    - Select the year for analysis
-   - Navigate through the five analysis steps using the horizontal menu
-   - View visualizations and data tables for each analysis type
+   - Navigate through the analysis steps using the horizontal menu (Yearly Trend, Lunar New Year Effect, BAU MoM, Monthly Uplift, Quarterly Uplift)
+   - View interactive charts and data tables for each analysis type
 
 3. **Manual Projection Tab**:
    - Enter a baseline value
-   - Adjust the different effect sliders to see how they impact the projection
-   - View the breakdown of effects and the final projected value
+   - Adjust the effect input (Slider or Direct Input) for each factor: Lunar New Year, BAU MoM, Monthly Uplift, Quarterly Uplift, Additional Factors
+   - Instantly see the impact on the projected value and breakdown
+
+## Notes
+- The metrics column is fixed as `metrics` (no dynamic column selection).
+- All visualizations use Altair and are interactive.
+- The app supports data with multiple years and special day types.
+- For best results, ensure your data covers at least two consecutive years.
+- Error messages and warnings will guide you if required data is missing or incorrectly formatted.

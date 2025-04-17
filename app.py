@@ -2,19 +2,19 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
-from datetime import datetime, timedelta
+from datetime import datetime
 from streamlit_option_menu import option_menu
+from streamlit.errors import StreamlitAPIException
 
 from utils import (
     load_data,
     get_yearly_data,
     get_lunar_new_year_periods,
-    get_lunar_new_year_data,
-    calculate_lunar_new_year_yoy,
     calculate_monthly_bau_mom,
     calculate_monthly_special_day_uplift,
     calculate_quarterly_special_day_uplift,
     create_line_chart,
+    calculate_lny_vs_bau
 )
 
 # Set page configuration
@@ -32,13 +32,40 @@ def main():
     # Set up sidebar navigation
     with st.sidebar:
         st.title("🧭 Navigation")
+        st.caption('''
+        *Select tab to Proceed*
+        ''')
         selected_tab = option_menu(
             menu_title=None,
             options=["Upload Data", "Projection Analysis", "Manual Projection"],
-            icons=["cloud-upload", "graph-up", "sliders"],
+            icons=["upload", "bar-chart", "sliders"],
             menu_icon="cast",
             default_index=0,
         )
+        st.write('---')
+        st.title("✏️ Notes")
+        st.caption('''
+        *Enter the needed values for each factor*
+        ''')
+        with st.expander("Expand Notes", expanded=False):
+            base_df = pd.DataFrame(
+                [
+                    {"dims": "Baseline Value", "value": 5_000_000},
+                ],
+                columns=["dims", "value"],
+            )
+            metrics_df = pd.DataFrame(
+                [
+                    {"factors": "Lunar New Year Effect", "value": 0.000},
+                    {"factors": "BAU MoM", "value": 0.000},
+                    {"factors": "Monthly Uplift", "value": 0.000},
+                    {"factors": "Quarterly Uplift", "value": 0.000},
+                    {"factors": "Additional Factors", "value": 0.000},
+                ],
+                columns=["factors", "value"],
+            )
+            st.data_editor(base_df, use_container_width=True, key="base_df", hide_index=True)
+            st.data_editor(metrics_df, use_container_width=True, key="note_df", hide_index=True)
     
     # Global state for uploaded data
     if 'data' not in st.session_state:
@@ -58,25 +85,25 @@ def main():
             if error:
                 st.error(error)
             else:
-                st.success("✅ CSV Loaded")
+                st.success("✅ CSV Loaded Successfully")
                 
                 # Store data in session state
                 st.session_state.data = data
                 
                 # Data preview
-                with st.expander("👀 Preview Uploaded Data", expanded=True):
-                    st.dataframe(data.sort_values('grass_date').reset_index(drop=True), use_container_width=True)
+                with st.expander("👀 Preview Uploaded Data", expanded=False):
+                    st.dataframe(data.sort_values('grass_date').reset_index(drop=True), use_container_width=True, hide_index=True)
                     
                     # Show summary of available data
                     min_date = data['grass_date'].min().date()
                     max_date = data['grass_date'].max().date()
-                    st.success(f"Data ranges from {min_date} ~ {max_date}")
+                    st.info(f"Data ranges from {min_date} ~ {max_date}")
                     
                     # Show unique date_types
                     date_types = data['date_type'].unique()
                     st.caption(f"Day types in data: {', '.join(date_types)}")
                 
-                st.info("⬅️ Select 'Projection Analysis' from the sidebar to continue")
+                st.error("⬅️ Select 'Projection Analysis' from the sidebar to continue")
     
     # Tab 2: Projection Analysis
     elif selected_tab == "Projection Analysis":
@@ -86,7 +113,7 @@ def main():
             data = st.session_state.data
             
             # Year selection
-            st.subheader("🔎 Select Year for Analysis")
+            st.subheader("🔎 Select Year for Metrics Analysis")
             
             # Year input for projection
             available_years = sorted(data['year'].unique())
@@ -110,17 +137,17 @@ def main():
             if projection_data.empty:
                 st.error(f"❌ No data available for {target_year} and the previous year")
             else:
-                st.subheader(f"🪄 Projection Analysis for {target_year}")
+                st.subheader(f"🪄 Metrics Analysis of {target_year}")
                 
                 # Create option menu for different projection steps
                 selected_option = option_menu(
-                    menu_title="",
+                    menu_title=" ",
                     options=[
-                        "❶ Yearly Trend", 
-                        "❷ Lunar New Year Effect", 
-                        "❸ BAU MoM", 
-                        "❹ Monthly Uplift", 
-                        "❺ Quarterly Uplift"
+                        "Yearly Trend", 
+                        "Lunar New Year Effect", 
+                        "BAU MoM", 
+                        "Monthly Uplift", 
+                        "Quarterly Uplift"
                     ],
                     icons=["graph-up", "moon-fill", "calendar3", "arrows-expand", "arrows-expand"],
                     menu_icon="list-task",
@@ -129,7 +156,7 @@ def main():
                 )
                 
                 # Tab 1: Yearly Trends
-                if selected_option == "❶ Yearly Trend":
+                if selected_option == "Yearly Trend":
                     st.subheader("Yearly Trend")
                     st.caption(f"Showing data from January {target_year-1} to December {target_year}")
                     
@@ -151,7 +178,7 @@ def main():
                         options=unique_date_types,
                         index=0
                     )
-                    
+                    st.write('---')
                     # Filter data for selected date type
                     filtered_metrics = monthly_metrics[monthly_metrics['date_type'] == selected_date_type]
                     
@@ -171,9 +198,27 @@ def main():
                         title=f'Monthly Metrics for {selected_date_type} ({target_year-1} vs {target_year})'
                     )
                     
-                    st.altair_chart(year_comparison_chart, use_container_width=True)
+                    # Add text labels to the line chart
+                    text_labels = alt.Chart(filtered_metrics).mark_text(
+                        align='center',
+                        baseline='bottom',
+                        dy=0,
+                        fontSize=10
+                    ).encode(
+                        x=alt.X('month_name:N', sort=list(filtered_metrics['month_name'].unique())),
+                        y='metrics:Q',
+                        text=alt.Text('metrics:Q', format='.0f'),
+                        color=alt.Color('year:N')
+                    )
+                    
+                    # Combine the line chart with labels
+                    final_year_chart = year_comparison_chart + text_labels
+                    
+                    st.subheader("Comparison View for Yearly Trend")
+                    st.altair_chart(final_year_chart, use_container_width=True)
                     
                     # Create YoY waterfall chart
+                    st.write('---')
                     st.subheader(f"Year-over-Year Comparison ({target_year} vs {target_year-1})")
                     
                     # Prepare data for YoY waterfall chart
@@ -208,10 +253,32 @@ def main():
                         title=f'YoY Percentage Difference for {selected_date_type} ({target_year} vs {target_year-1})'
                     )
                     
-                    st.altair_chart(waterfall_chart, use_container_width=True)
+                    # Add text labels to the waterfall chart
+                    waterfall_labels = alt.Chart(yoy_data).mark_text(
+                        align='center',
+                        baseline='bottom',
+                        dy=0,
+                        fontSize=10
+                    ).encode(
+                        x=alt.X('month_name:N', sort=list(yoy_data['month_name'])),
+                        y='yoy_pct:Q',
+                        text=alt.Text('yoy_pct:Q', format='+.1f%'),
+                        color=alt.condition(
+                            alt.datum.yoy_pct >= 0,
+                            alt.value('#4CAF50'),  # green for positive
+                            alt.value('#F44336')   # red for negative
+                        )
+                    )
+                    
+                    # Combine the waterfall chart with labels
+                    final_waterfall_chart = waterfall_chart + waterfall_labels
+                    
+                    st.altair_chart(final_waterfall_chart, use_container_width=True)
                     
                     # Display data table
-                    st.subheader("Monthly Average Metrics by Date Type")
+                    st.write(f'''
+                    **Monthly Average Metrics for {selected_date_type}**
+                    ''')
                     
                     # Pivot table for display
                     pivot_table = filtered_metrics.pivot_table(
@@ -228,112 +295,150 @@ def main():
                     pivot_table = pivot_table.sort_values('month', key=lambda x: x.map(lambda m: month_order.get(m, 0)))
                     
                     # Display the table
-                    st.dataframe(pivot_table.sort_values('month').reset_index(drop=True), use_container_width=True)
+                    st.dataframe(pivot_table.sort_values('month').reset_index(drop=True), use_container_width=True, hide_index=True)
                 
                 # Tab 2: Lunar New Year Effect
-                elif selected_option == "❷ Lunar New Year Effect":
+                elif selected_option == "Lunar New Year Effect":
                     st.subheader("Lunar New Year Effect Analysis")
                     
-                    # Get Lunar New Year periods
+                    # Lunar New Year period selection UI
+                    st.caption('Lunar New Year Period Selection')
+                    lny_period_mode = st.segmented_control(
+                        'Choose LNY period selection mode:',
+                        ["Auto (Hard Code)", "Manual Selection"],
+                        key='lny_period_mode',
+                        default='Auto (Hard Code)'
+                    )
+
+                    # Get default Lunar New Year periods (for manual selection)
                     current_lny_start, current_lny_end = get_lunar_new_year_periods(target_year)
                     prev_lny_start, prev_lny_end = get_lunar_new_year_periods(target_year - 1)
-                    
-                    st.caption(f'''
-                    *Current Year Lunar New Year Period* ⇨ {current_lny_start.date()} ~ {current_lny_end.date()}  
-                    
-                    *Previous Year Lunar New Year Period* ⇨ {prev_lny_start.date()} ~ {prev_lny_end.date()}
-                    ''')
-                    
-                    # Get Lunar New Year data
-                    current_lny_data, prev_lny_data = get_lunar_new_year_data(projection_data, target_year)
-                    
-                    if current_lny_data.empty or prev_lny_data.empty:
-                        st.warning("Insufficient data for Lunar New Year analysis.")
+
+                    if lny_period_mode == 'Auto (Hard Code)':
+                        lny_periods = {
+                            'current': (current_lny_start, current_lny_end),
+                            'prev': (prev_lny_start, prev_lny_end)
+                        }
                     else:
-                        # Calculate YoY differences
-                        lny_yoy_data, lny_summary = calculate_lunar_new_year_yoy(current_lny_data, prev_lny_data)
-                        
-                        # Display Lunar New Year data
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            st.subheader(f"{target_year} Data")
-                            st.dataframe(
-                                current_lny_data[['grass_date', 'date_type', 'metrics', 'lny_day_seq']],
-                                use_container_width=True
+                        try:
+                            manual_current = st.date_input(
+                                f'**{target_year} LNY Period**',
+                                value=(current_lny_start.date(), current_lny_end.date()),
+                                key='manual_current_lny',
+                                min_value=projection_data['grass_date'].min().date(),
+                                max_value=projection_data['grass_date'].max().date()
                             )
-                        
-                        with col2:
-                            st.subheader(f"{target_year-1} Data")
-                            st.dataframe(
-                                prev_lny_data[['grass_date', 'date_type', 'metrics', 'lny_day_seq']],
-                                use_container_width=True
+                        except StreamlitAPIException as e:
+                            st.error(f"‼️ LNY period default value is out of data range. Please check your data or adjust the default period.\n\nError: {e}")
+                            return
+                        try:
+                            manual_prev = st.date_input(
+                                f'**{target_year - 1} LNY Period**',
+                                value=(prev_lny_start.date(), prev_lny_end.date()),
+                                key='manual_prev_lny',
+                                min_value=projection_data['grass_date'].min().date(),
+                                max_value=projection_data['grass_date'].max().date()
                             )
-                        
-                        # Display YoY comparison
-                        st.subheader("Lunar New Year YoY Comparison")
-                        st.dataframe(
-                            lny_yoy_data[[
-                                'lny_day_seq', 
-                                'grass_date_current', 
-                                'date_type_current', 
-                                'metrics_current',
-                                'grass_date_prev', 
-                                'date_type_prev', 
-                                'metrics_prev',
-                                'yoy_diff', 
-                                'yoy_pct'
-                            ]],
-                            use_container_width=True
+                        except StreamlitAPIException as e:
+                            st.error(f"‼️ LNY period default value is out of data range. Please check your data or adjust the default period.\n\nError: {e}")
+                            return
+                        lny_periods = {
+                            'current': (pd.Timestamp(manual_current[0]), pd.Timestamp(manual_current[1])),
+                            'prev': (pd.Timestamp(manual_prev[0]), pd.Timestamp(manual_prev[1]))
+                        }
+
+                    # Calculate LNY vs BAU for both years
+                    lny_vs_bau_current = calculate_lny_vs_bau(projection_data, lny_periods['current'][0], lny_periods['current'][1])
+                    lny_vs_bau_prev = calculate_lny_vs_bau(projection_data, lny_periods['prev'][0], lny_periods['prev'][1])
+
+                    st.write('---')
+                    st.subheader('Lunar New Year Period vs Mean of Business-As-Usual')
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown(f'#### *{target_year} LNY vs {lny_periods["current"][0].strftime("%Y-%m")} BAU*')
+                        if not lny_vs_bau_current.empty:
+                            # Add metric
+                            total_diff = lny_vs_bau_current['diff'].sum()
+                            total_bau = lny_vs_bau_current['bau_avg'].sum() if not lny_vs_bau_current['bau_avg'].isnull().all() else 0
+                            total_pct = (total_diff / total_bau) if total_bau else 0
+                            st.metric(label="Total Change", value=f"{total_diff:,.0f}", delta=f"{total_pct:,.2%}")
+                            # Show chart
+                            chart_data = lny_vs_bau_current.copy()
+                            chart_data['date_str'] = chart_data['grass_date'].dt.strftime('%Y-%m-%d')
+                            lny_bau_chart = alt.Chart(chart_data).mark_bar().encode(
+                                x=alt.X('date_str:N', title='Date'),
+                                y=alt.Y('pct_change:Q', title='Change vs BAU (%)', axis=alt.Axis(format='%')), 
+                                color=alt.condition(alt.datum.pct_change > 0, alt.value('green'), alt.value('red')),
+                                tooltip=['date_str', 'metrics', 'bau_avg', alt.Tooltip('pct_change', format='.2%')]
+                            ).properties(title=f'{target_year} LNY vs {lny_periods["current"][0].strftime("%Y-%m")} BAU day-by-day comparison')
+                            st.altair_chart(lny_bau_chart, use_container_width=True)
+                            # Show dataframe
+                            st.dataframe(lny_vs_bau_current[['grass_date', 'metrics', 'bau_avg', 'diff', 'pct_change']].reset_index(drop=True), use_container_width=True, hide_index=True)
+                        else:
+                            st.error('‼️ No data for selected period.')
+                    with col2:
+                        st.markdown(f'#### *{target_year-1} LNY vs {lny_periods["prev"][0].strftime("%Y-%m")} BAU*')
+                        if not lny_vs_bau_prev.empty:
+                            # Add metric
+                            total_diff = lny_vs_bau_prev['diff'].sum()
+                            total_bau = lny_vs_bau_prev['bau_avg'].sum() if not lny_vs_bau_prev['bau_avg'].isnull().all() else 0
+                            total_pct = (total_diff / total_bau) if total_bau else 0
+                            st.metric(label="Total Change", value=f"{total_diff:,.0f}", delta=f"{total_pct:,.2%}")
+                            # Show chart
+                            chart_data = lny_vs_bau_prev.copy()
+                            chart_data['date_str'] = chart_data['grass_date'].dt.strftime('%Y-%m-%d')
+                            lny_bau_chart = alt.Chart(chart_data).mark_bar().encode(
+                                x=alt.X('date_str:N', title='Date'),
+                                y=alt.Y('pct_change:Q', title='Change vs BAU (%)', axis=alt.Axis(format='%')),
+                                color=alt.condition(alt.datum.pct_change > 0, alt.value('green'), alt.value('red')),
+                                tooltip=['date_str', 'metrics', 'bau_avg', alt.Tooltip('pct_change', format='.2%')]
+                            ).properties(title=f'{target_year-1} LNY vs {lny_periods["prev"][0].strftime("%Y-%m")} BAU day-by-day comparison')
+                            st.altair_chart(lny_bau_chart, use_container_width=True)
+                            # Show dataframe
+                            st.dataframe(lny_vs_bau_prev[['grass_date', 'metrics', 'bau_avg', 'diff', 'pct_change']].reset_index(drop=True), use_container_width=True, hide_index=True)
+                        else:
+                            st.error('‼️ No data for selected period.')
+                    st.write('---')
+
+                    # 新增 YoY of Lunar New Year Period 區塊
+                    st.subheader('YoY of Lunar New Year Period')
+                    # 先確保兩年資料都不為空且 lny_day_seq 存在
+                    if not lny_vs_bau_current.empty and not lny_vs_bau_prev.empty:
+                        # 為兩年資料補上 lny_day_seq
+                        lny_vs_bau_current = lny_vs_bau_current.copy()
+                        lny_vs_bau_prev = lny_vs_bau_prev.copy()
+                        lny_vs_bau_current['lny_day_seq'] = (lny_vs_bau_current['grass_date'] - lny_vs_bau_current['grass_date'].min()).dt.days + 1
+                        lny_vs_bau_prev['lny_day_seq'] = (lny_vs_bau_prev['grass_date'] - lny_vs_bau_prev['grass_date'].min()).dt.days + 1
+                        # 用 lny_day_seq 對齊做 merge
+                        yoy_df = pd.merge(
+                            lny_vs_bau_current[['lny_day_seq', 'metrics']],
+                            lny_vs_bau_prev[['lny_day_seq', 'metrics']],
+                            left_on='lny_day_seq', right_on='lny_day_seq',
+                            suffixes=('_current', '_prev')
                         )
-                        
-                        # Create chart for YoY comparison
-                        lny_chart_data = lny_yoy_data.copy()
-                        lny_chart_data['day_sequence'] = lny_chart_data['lny_day_seq'].astype(str)
-                        
-                        lny_chart = alt.Chart(lny_chart_data).mark_bar().encode(
-                            x=alt.X('day_sequence:N', title='Day Sequence'),
-                            y=alt.Y('yoy_pct:Q', title='YoY Change (%)'),
-                            color=alt.condition(
-                                alt.datum.yoy_pct > 0,
-                                alt.value("green"),
-                                alt.value("red")
-                            ),
-                            tooltip=[
-                                'day_sequence', 
-                                'grass_date_current', 
-                                'grass_date_prev',
-                                alt.Tooltip('metrics_current', title='Current Year', format='.2f'),
-                                alt.Tooltip('metrics_prev', title='Previous Year', format='.2f'),
-                                alt.Tooltip('yoy_pct', title='YoY Change (%)', format='.2f')
-                            ]
-                        ).properties(
-                            title=f'Lunar New Year YoY Change ({target_year} vs {target_year-1})'
-                        )
-                        
-                        st.altair_chart(lny_chart, use_container_width=True)
-                        
-                        # Display summary
-                        st.subheader("Lunar New Year YoY Summary")
-                        summary_data = pd.DataFrame({
-                            'Metric': [
-                                f'Total {target_year}', 
-                                f'Total {target_year-1}', 
-                                'Overall Difference', 
-                                'Overall Change (%)'
-                            ],
-                            'Value': [
-                                f"{lny_summary['total_current']:,.2f}",
-                                f"{lny_summary['total_prev']:,.2f}",
-                                f"{lny_summary['overall_diff']:,.2f}",
-                                f"{lny_summary['overall_pct']:,.2f}%"
-                            ]
-                        })
-                        
-                        st.dataframe(summary_data, use_container_width=True)
+                        yoy_df['yoy_diff'] = yoy_df['metrics_current'] - yoy_df['metrics_prev']
+                        yoy_df['yoy_pct'] = (yoy_df['metrics_current'] - yoy_df['metrics_prev']) / yoy_df['metrics_prev'].replace(0, np.nan)
+                        yoy_df['day_seq'] = yoy_df['lny_day_seq'].astype(str)
+                        st.dataframe(yoy_df[['lny_day_seq', 'metrics_current', 'metrics_prev', 'yoy_diff', 'yoy_pct']].reset_index(drop=True), use_container_width=True, hide_index=True)
+                        # 條狀圖
+                        yoy_chart = alt.Chart(yoy_df).mark_bar().encode(
+                            x=alt.X('day_seq:N', title='LNY Day Sequence'),
+                            y=alt.Y('yoy_pct:Q', title='YoY Change (%)', axis=alt.Axis(format='%')),
+                            color=alt.condition(alt.datum.yoy_pct > 0, alt.value('green'), alt.value('red')),
+                            tooltip=['day_seq', 'metrics_current', 'metrics_prev', alt.Tooltip('yoy_diff', format='.2f'), alt.Tooltip('yoy_pct', format='.2%')]
+                        ).properties(title=f'LNY YoY Change ({target_year} vs {target_year-1})')
+                        st.altair_chart(yoy_chart, use_container_width=True)
+                        # 總 YoY 增減幅度 metric
+                        total_current = yoy_df['metrics_current'].sum()
+                        total_prev = yoy_df['metrics_prev'].sum()
+                        yoy_total_diff = total_current - total_prev
+                        yoy_total_pct = (yoy_total_diff / total_prev) if total_prev else 0
+                        st.metric(label="Total LNY YoY Change", value=f"{yoy_total_diff:,.2f}", delta=f"{yoy_total_pct:.2%}")
+                    else:
+                        st.error('‼️ No sufficient data for YoY analysis of LNY period.')
                 
                 # Tab 3: BAU MoM Analysis
-                elif selected_option == "❸ BAU MoM":
+                elif selected_option == "BAU MoM":
                     st.subheader("Business-As-Usual Month-on-Month Analysis")
                     st.caption("Calculating MoM differences for BAU days, excluding Lunar New Year periods")
                     
@@ -354,6 +459,7 @@ def main():
                         st.altair_chart(bau_mom_chart, use_container_width=True)
                         
                         # Display data table
+                        st.write('---')
                         st.subheader("BAU Month-on-Month Analysis Data")
                         display_columns = [
                             'month_year', 
@@ -369,11 +475,12 @@ def main():
                         
                         st.dataframe(
                             formatted_bau_mom.sort_values('month_year'),
-                            use_container_width=True
+                            use_container_width=True,
+                            hide_index=True
                         )
                 
                 # Tab 4: Monthly Date_Type Uplift
-                elif selected_option == "❹ Monthly Uplift":
+                elif selected_option == "Monthly Uplift":
                     st.subheader("Monthly Date-Type Uplift Analysis")
                     st.caption("Calculating monthly uplift percentages for special day types compared to BAU")
                     
@@ -417,9 +524,30 @@ def main():
                                 title=f'{selected_day_type} Monthly Uplift vs BAU (%)'
                             )
                             
-                            st.altair_chart(waterfall_chart, use_container_width=True)
+                            # Add text labels to the waterfall chart
+                            waterfall_labels = alt.Chart(chart_data).mark_text(
+                                align='center',
+                                baseline='bottom',
+                                dy=0,
+                                fontSize=10
+                            ).encode(
+                                x=alt.X('month_year:N', sort=None),
+                                y='uplift_pct:Q',
+                                text=alt.Text('uplift_pct:Q', format='+.1f%'),
+                                color=alt.condition(
+                                    alt.datum.uplift_pct > 0,
+                                    alt.value("green"),
+                                    alt.value("red")
+                                )
+                            )
+                            
+                            # Combine the waterfall chart with labels
+                            final_waterfall_chart = waterfall_chart + waterfall_labels
+                    
+                            st.altair_chart(final_waterfall_chart, use_container_width=True)
                         
                         # Display data table
+                        st.write('---')
                         st.subheader("Monthly Special Day Uplift Data")
                         
                         # Prepare display columns
@@ -438,11 +566,12 @@ def main():
                         
                         st.dataframe(
                             formatted_monthly_uplift.sort_values('month_year'),
-                            use_container_width=True
+                            use_container_width=True,
+                            hide_index=True
                         )
                 
                 # Tab 5: Quarterly Special Day Uplift
-                elif selected_option == "❺ Quarterly Uplift":
+                elif selected_option == "Quarterly Uplift":
                     st.subheader("Quarterly Date-Type Uplift Analysis")
                     st.caption("Calculating quarterly uplift percentages for special day types compared to BAU")
                     
@@ -483,12 +612,33 @@ def main():
                                     alt.Tooltip('uplift_pct', title='Uplift (%)', format='.2f')
                                 ]
                             ).properties(
-                                title=f'{selected_day_type} Quarterly Uplift vs BAU (%)'
+                                title=f'{selected_day_type} Quarterly Uplift vs BAU (%)',
                             )
                             
-                            st.altair_chart(waterfall_chart, use_container_width=True)
+                            # Add text labels to the waterfall chart
+                            waterfall_labels = alt.Chart(chart_data).mark_text(
+                                align='center',
+                                baseline='bottom',
+                                dy=0,
+                                fontSize=10
+                            ).encode(
+                                x=alt.X('quarter_year:N', sort=None),
+                                y='uplift_pct:Q',
+                                text=alt.Text('uplift_pct:Q', format='+.1f%'),
+                                color=alt.condition(
+                                    alt.datum.uplift_pct > 0,
+                                    alt.value("green"),
+                                    alt.value("red")
+                                )
+                            )
+                            
+                            # Combine the waterfall chart with labels
+                            final_waterfall_chart = waterfall_chart + waterfall_labels
+                            
+                            st.altair_chart(final_waterfall_chart, use_container_width=True)
                         
                         # Display data table
+                        st.write('---')
                         st.subheader("Quarterly Special Day Uplift Data")
                         
                         # Prepare display columns
@@ -507,14 +657,15 @@ def main():
                         
                         st.dataframe(
                             formatted_quarterly_uplift.sort_values('quarter_year'),
-                            use_container_width=True
+                            use_container_width=True,
+                            hide_index=True
                         )
     
     # Tab 3: Manual Projection
     elif selected_tab == "Manual Projection":
         st.header("🛠️ Manual Projection")
         st.caption("Adjust parameters to create your own projection")
-        
+
         # Baseline input
         baseline = st.number_input("Enter Baseline Value", min_value=0, value=5_000_000, step=10_000)
         
@@ -522,36 +673,151 @@ def main():
         st.subheader("Adjustment Factors")
         
         # Create sliders for different effects
-        lny_effect = st.select_slider(
-            "Lunar New Year Effect",
-            options=[float(f"{-30.0 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
-            value=0.0,
-            format_func=lambda x: f"{x:+.1f}%"
-        )
-        
-        bau_mom_effect = st.select_slider(
-            "BAU MoM Growth",
-            options=[float(f"{-30.0 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
-            value=0.0,
-            format_func=lambda x: f"{x:+.1f}%"
-        )
-        
-        monthly_uplift = st.select_slider(
-            "Monthly Uplift - Date Type",
-            options=[float(f"{-30.0 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
-            value=0.0,
-            format_func=lambda x: f"{x:+.1f}%"
-        )
-        
-        quarterly_uplift = st.select_slider(
-            "Quarterly Uplift - Date Type",
-            options=[float(f"{-30.0 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
-            value=0.0,
-            format_func=lambda x: f"{x:+.1f}%"
-        )
+        with st.expander("Expand Settings", expanded=False):
+            st.write('''
+            ##### ❶ Lunar New Year Effect        
+            ''')
+            lny_input_type = st.segmented_control(
+                "Input Type",
+                ["Slider", "Direct Input"],
+                key="lny_input_type",
+                default="Direct Input"
+            )
+            
+            if lny_input_type == "Slider":
+                lny_effect = st.select_slider(
+                    "",
+                    options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
+                    value=0.00,
+                    format_func=lambda x: f"{x:+.2f}%"
+                )
+            else:
+                lny_effect = st.number_input(
+                    "(%)",
+                    min_value=-30.00,
+                    max_value=30.00,
+                    value=0.00,
+                    step=0.01,
+                    format="%.2f"
+                )
+            
+            st.write('''
+            ##### ❷ BAU MoM Growth Effect        
+            ''')
+            bau_mom_input_type = st.segmented_control(
+                "Input Type",
+                ["Slider", "Direct Input"],
+                key="bau_mom_input_type",
+                default="Direct Input"
+            )
+            
+            if bau_mom_input_type == "Slider":
+                bau_mom_effect = st.select_slider(
+                    "",
+                    options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
+                    value=0.00,
+                    format_func=lambda x: f"{x:+.2f}%"
+                )
+            else:
+                bau_mom_effect = st.number_input(
+                    "(%)",
+                    min_value=-30.00,
+                    max_value=30.00,
+                    value=0.00,
+                    step=0.01,
+                    format="%.2f",
+                    key='bau_mom_effect'
+                )
+            
+            st.write('''
+            ##### ❸ Monthly Uplift Effect (of Date Type)       
+            ''')
+            monthly_uplift_input_type = st.segmented_control(
+                "Input Type",
+                ["Slider", "Direct Input"],
+                key="monthly_uplift_input_type",
+                default="Direct Input"
+            )
+            
+            if monthly_uplift_input_type == "Slider":
+                monthly_uplift = st.select_slider(
+                    "",
+                    options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
+                    value=0.00,
+                    format_func=lambda x: f"{x:+.2f}%",
+                    key='monthly_uplift'
+                )
+            else:
+                monthly_uplift = st.number_input(
+                    "(%)",
+                    min_value=-30.00,
+                    max_value=30.00,
+                    value=0.00,
+                    step=0.01,
+                    format="%.2f",
+                    key='monthly_uplift'
+                )
+            
+            st.write('''
+            ##### ❹ Quarterly Uplift Effect (of Date Type)       
+            ''')
+            quarterly_uplift_input_type = st.segmented_control(
+                "Input Type",
+                ["Slider", "Direct Input"],
+                key="quarterly_uplift_input_type",
+                default="Direct Input"
+            )
+            
+            if quarterly_uplift_input_type == "Slider":
+                quarterly_uplift = st.select_slider(
+                    "",
+                    options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
+                    value=0.00,
+                    format_func=lambda x: f"{x:+.2f}%",
+                    key='quarterly_uplift'
+                )
+            else:
+                quarterly_uplift = st.number_input(
+                    "(%)",
+                    min_value=-30.00,
+                    max_value=30.00,
+                    value=0.00,
+                    step=0.01,
+                    format="%.2f",
+                    key='quarterly_uplift'
+                )
+            
+            st.write('''
+            ##### ❺ Additional Effect    
+            ''')
+            additional_input_type = st.segmented_control(
+                "Input Type",
+                ["Slider", "Direct Input"],
+                key="additional_input_type",
+                default="Direct Input"
+            )
+            
+            if additional_input_type == "Slider":
+                additional_input = st.select_slider(
+                    "",
+                    options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
+                    value=0.00,
+                    format_func=lambda x: f"{x:+.2f}%",
+                    key='additional_input'
+                )
+            else:
+                additional_input = st.number_input(
+                    "(%)",
+                    min_value=-30.00,
+                    max_value=30.00,
+                    value=0.00,
+                    step=0.01,
+                    format="%.2f",
+                    key='additional_input'
+                )
         
         # Calculate total effect
-        total_effect_pct = lny_effect + bau_mom_effect + monthly_uplift + quarterly_uplift
+        total_effect_pct = lny_effect + bau_mom_effect + monthly_uplift + quarterly_uplift + additional_input
         projected_value = baseline * (1 + total_effect_pct / 100)
         
         # Display results
@@ -572,13 +838,14 @@ def main():
         st.subheader("Effect Breakdown")
         
         effect_data = pd.DataFrame({
-            'Factor': ['Lunar New Year Effect', 'BAU MoM Growth', 'Monthly Uplift', 'Quarterly Uplift', 'Total Effect'],
-            'Percentage': [lny_effect, bau_mom_effect, monthly_uplift, quarterly_uplift, total_effect_pct],
+            'Factor': ['Lunar New Year Effect', 'BAU MoM Growth', 'Monthly Uplift', 'Quarterly Uplift', 'Additional Effect', 'Total Effect'],
+            'Percentage': [lny_effect, bau_mom_effect, monthly_uplift, quarterly_uplift, additional_input, total_effect_pct],
             'Value Impact': [
                 baseline * (lny_effect / 100),
                 baseline * (bau_mom_effect / 100),
                 baseline * (monthly_uplift / 100),
                 baseline * (quarterly_uplift / 100),
+                baseline * (additional_input / 100),
                 baseline * (total_effect_pct / 100)
             ]
         })
@@ -587,14 +854,12 @@ def main():
         effect_data['Percentage'] = effect_data['Percentage'].apply(lambda x: f"{x:+.2f}%")
         effect_data['Value Impact'] = effect_data['Value Impact'].apply(lambda x: f"{x:+,.2f}")
         
-        st.dataframe(effect_data, use_container_width=True)
+        st.dataframe(effect_data, use_container_width=True, hide_index=True)
     
     else:
         # Display welcome message when no tab is selected (should not happen)
-        st.title("🤖 Business Metrics Analysis Tool")
+        st.title("🤖 Projection Automation Tool")
         st.markdown("""
-        ### Welcome to the Business Metrics Analysis Tool!
-        
         Please select an option from the sidebar to get started.
         """)
 
