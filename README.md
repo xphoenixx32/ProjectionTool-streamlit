@@ -46,7 +46,7 @@ flowchart TD
 
 Your CSV file should include the following columns:
 - `grass_date`: Date in YYYY-MM-DD format
-- `date_type`: Category of day (e.g., 'bau', '1st_spike', '2nd_spike', '3rd_spike', 'FSS')
+- `date_type`: Different Day Types due to Budget Investment
 - `metrics`: Numerical values (fixed column name)
 
 ## How to Run
