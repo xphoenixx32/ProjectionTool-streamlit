@@ -11,8 +11,8 @@ from utils import (
     get_yearly_data,
     get_lunar_new_year_periods,
     calculate_monthly_bau_mom,
-    calculate_monthly_special_day_uplift,
-    calculate_quarterly_special_day_uplift,
+    calculate_monthly_uplift_datetype_vs_bau,
+    calculate_quarterly_uplift_datetype_vs_bau,
     create_line_chart,
     calculate_lny_vs_bau
 )
@@ -485,7 +485,7 @@ def main():
                     st.caption("Calculating monthly uplift percentages for special day types compared to BAU")
                     
                     # Calculate monthly special day uplift
-                    monthly_uplift_data = calculate_monthly_special_day_uplift(projection_data, target_year)
+                    monthly_uplift_data = calculate_monthly_uplift_datetype_vs_bau(projection_data, target_year)
                     
                     if monthly_uplift_data.empty:
                         st.warning("Insufficient data for monthly special day type uplift analysis.")
@@ -576,7 +576,7 @@ def main():
                     st.caption("Calculating quarterly uplift percentages for special day types compared to BAU")
                     
                     # Calculate quarterly special day uplift
-                    quarterly_uplift_data = calculate_quarterly_special_day_uplift(projection_data, target_year)
+                    quarterly_uplift_data = calculate_quarterly_uplift_datetype_vs_bau(projection_data, target_year)
                     
                     if quarterly_uplift_data.empty:
                         st.warning("Insufficient data for quarterly special day type uplift analysis.")
