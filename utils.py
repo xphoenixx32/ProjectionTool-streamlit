@@ -101,9 +101,9 @@ def calculate_monthly_bau_mom(data, year):
     
     return monthly_avg
 
-def calculate_monthly_special_day_uplift(data, year):
+def calculate_monthly_uplift_datetype_vs_bau(data, year):
     """
-    Calculate monthly uplift percentages for special day types compared to BAU
+    Calculate monthly uplift percentages for date_type compared to BAU
     """
     # Get Lunar New Year periods to exclude
     current_lny_start, current_lny_end = get_lunar_new_year_periods(year)
@@ -140,9 +140,9 @@ def calculate_monthly_special_day_uplift(data, year):
     
     return pivoted
 
-def calculate_quarterly_special_day_uplift(data, year):
+def calculate_quarterly_uplift_datetype_vs_bau(data, year):
     """
-    Calculate quarterly uplift percentages for special day types compared to BAU
+    Calculate quarterly uplift percentages for date_type compared to BAU
     """
     # Get Lunar New Year periods to exclude
     current_lny_start, current_lny_end = get_lunar_new_year_periods(year)
