@@ -7,6 +7,16 @@ import altair as alt
 # Cache data loading for performance
 @st.cache_data
 def load_data(uploaded_file):
+    """
+    Load and process the uploaded data
+
+    Parameters:
+        uploaded_file: The uploaded CSV file containing business metrics
+    
+    Returns:
+        data: Processed DataFrame with additional columns for year, month, quarter, and day
+        error: Error message if data loading fails
+    """
     try:
         data = pd.read_csv(uploaded_file)
         
@@ -39,6 +49,13 @@ def load_data(uploaded_file):
 def get_yearly_data(data, target_year):
     """
     Get data for the target year and the previous year starting from January
+
+    Parameters:
+        data: DataFrame containing the uploaded data
+        target_year: Year for which data is needed
+    
+    Returns:
+        filtered_data: DataFrame containing data for the target year and the previous year
     """
     start_date = datetime(target_year - 1, 1, 1)
     end_date = datetime(target_year, 12, 31)
@@ -50,8 +67,14 @@ def get_yearly_data(data, target_year):
 
 def get_lunar_new_year_periods(year):
     """
-    Return the Lunar New Year periods (Little New Year's Eve to 5th day) for a given year
+    Return the Lunar New Year periods (Little New Year's Eve to New Year's 5th) for a given year
     These are approximate dates and should be adjusted for actual lunar calendar
+
+    Parameters:
+        year: Year for which the Lunar New Year periods are needed
+    
+    Returns:
+        lny_start, lny_end: Start and end dates of the Lunar New Year period
     """
     # Approximate Lunar New Year dates (would need to be updated with actual lunar calendar)
     lunar_new_year_dates = {
@@ -72,6 +95,13 @@ def get_lunar_new_year_periods(year):
 def calculate_monthly_bau_mom(data, year):
     """
     Calculate Month-on-Month differences for BAU days, excluding Lunar New Year period
+    
+    Parameters:
+        data: DataFrame containing the uploaded data
+        year: Year for which the calculation is needed
+    
+    Returns:
+        monthly_avg: DataFrame containing monthly averages and MoM differences
     """
     # Get Lunar New Year periods to exclude
     current_lny_start, current_lny_end = get_lunar_new_year_periods(year)
@@ -103,7 +133,14 @@ def calculate_monthly_bau_mom(data, year):
 
 def calculate_monthly_uplift_datetype_vs_bau(data, year):
     """
-    Calculate monthly uplift percentages for date_type compared to BAU
+    Calculate MONTHLY uplift percentages for date_type compared to BAU
+    
+    Parameters:
+        data: DataFrame containing the uploaded data
+        year: Year for which the calculation is needed
+    
+    Returns:
+        monthly_avg: DataFrame containing monthly averages and uplift percentages
     """
     # Get Lunar New Year periods to exclude
     current_lny_start, current_lny_end = get_lunar_new_year_periods(year)
@@ -142,7 +179,14 @@ def calculate_monthly_uplift_datetype_vs_bau(data, year):
 
 def calculate_quarterly_uplift_datetype_vs_bau(data, year):
     """
-    Calculate quarterly uplift percentages for date_type compared to BAU
+    Calculate QUARTERLY uplift percentages for date_type compared to BAU
+    
+    Parameters:
+        data: DataFrame containing the uploaded data
+        year: Year for which the calculation is needed
+    
+    Returns:
+        quarterly_avg: DataFrame containing quarterly averages and uplift percentages
     """
     # Get Lunar New Year periods to exclude
     current_lny_start, current_lny_end = get_lunar_new_year_periods(year)
@@ -182,8 +226,20 @@ def calculate_quarterly_uplift_datetype_vs_bau(data, year):
 def create_line_chart(data, x_col, y_col, color_col=None, title=None):
     """
     Create a line chart using Altair
+    
+    Parameters:
+        data: DataFrame containing the data to be plotted
+        x_col: Column name for the x-axis
+        y_col: Column name for the y-axis
+        color_col: Column name for the color encoding
+        title: Title of the chart
+    
+    Returns:
+        chart: Altair chart object
     """
+    # Create basic line chart
     if color_col:
+        # Add tooltip for better interactivity
         chart = alt.Chart(data).mark_line(point=True).encode(
             x=alt.X(f'{x_col}:N', title=x_col.replace('_', ' ').title()),
             y=alt.Y(f'{y_col}:Q', title=y_col.replace('_', ' ').title()),
@@ -191,6 +247,7 @@ def create_line_chart(data, x_col, y_col, color_col=None, title=None):
             tooltip=[x_col, alt.Tooltip(y_col, format='.2f'), color_col]
         )
     else:
+        
         chart = alt.Chart(data).mark_line(point=True).encode(
             x=alt.X(f'{x_col}:N', title=x_col.replace('_', ' ').title()),
             y=alt.Y(f'{y_col}:Q', title=y_col.replace('_', ' ').title()),
@@ -203,7 +260,17 @@ def create_line_chart(data, x_col, y_col, color_col=None, title=None):
     return chart
 
 def calculate_lny_vs_bau(data, lny_start, lny_end):
-    """For a given Lunar New Year period, calculate each day's metrics vs the BAU average of the first month of the period."""
+    """
+    For a given Lunar New Year period, calculate each day's metrics vs the BAU average of the first month of the period.
+    
+    Parameters:
+        data: DataFrame containing the uploaded data
+        lny_start: Start date of the Lunar New Year period
+        lny_end: End date of the Lunar New Year period
+    
+    Returns:
+        lny_data: DataFrame containing the LNY period data and BAU comparison
+    """
     # Filter LNY period data
     lny_mask = (data['grass_date'] >= lny_start) & (data['grass_date'] <= lny_end)
     lny_data = data[lny_mask].copy()
@@ -213,6 +280,7 @@ def calculate_lny_vs_bau(data, lny_start, lny_end):
     # Determine the first month of LNY period
     first_month = lny_start.month
     first_year = lny_start.year
+
     # BAU: same month, same year, date_type == 'bau'
     bau_mask = (
         (data['year'] == first_year) &
@@ -222,6 +290,7 @@ def calculate_lny_vs_bau(data, lny_start, lny_end):
     bau_data = data[bau_mask]
     bau_avg = bau_data['metrics'].mean() if not bau_data.empty else np.nan
 
+    # Add BAU average and calculate differences
     lny_data['bau_avg'] = bau_avg
     lny_data['diff'] = lny_data['metrics'] - bau_avg
     lny_data['pct_change'] = (lny_data['metrics'] - bau_avg) / bau_avg if bau_avg != 0 else np.nan
