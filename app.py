@@ -400,16 +400,16 @@ def main():
                             st.error('‼️ No data for selected period.')
                     st.write('---')
 
-                    # 新增 YoY of Lunar New Year Period 區塊
+                    # Add YoY of Lunar New Year Period section
                     st.subheader('YoY of Lunar New Year Period')
-                    # 先確保兩年資料都不為空且 lny_day_seq 存在
+                    # Ensure both years' data are not empty and lny_day_seq exists
                     if not lny_vs_bau_current.empty and not lny_vs_bau_prev.empty:
-                        # 為兩年資料補上 lny_day_seq
+                        # Add lny_day_seq to both years' data
                         lny_vs_bau_current = lny_vs_bau_current.copy()
                         lny_vs_bau_prev = lny_vs_bau_prev.copy()
                         lny_vs_bau_current['lny_day_seq'] = (lny_vs_bau_current['grass_date'] - lny_vs_bau_current['grass_date'].min()).dt.days + 1
                         lny_vs_bau_prev['lny_day_seq'] = (lny_vs_bau_prev['grass_date'] - lny_vs_bau_prev['grass_date'].min()).dt.days + 1
-                        # 用 lny_day_seq 對齊做 merge
+                        # Align using lny_day_seq
                         yoy_df = pd.merge(
                             lny_vs_bau_current[['lny_day_seq', 'metrics']],
                             lny_vs_bau_prev[['lny_day_seq', 'metrics']],
@@ -420,7 +420,7 @@ def main():
                         yoy_df['yoy_pct'] = (yoy_df['metrics_current'] - yoy_df['metrics_prev']) / yoy_df['metrics_prev'].replace(0, np.nan)
                         yoy_df['day_seq'] = yoy_df['lny_day_seq'].astype(str)
                         st.dataframe(yoy_df[['lny_day_seq', 'metrics_current', 'metrics_prev', 'yoy_diff', 'yoy_pct']].reset_index(drop=True), use_container_width=True, hide_index=True)
-                        # 條狀圖
+                        # Bar chart
                         yoy_chart = alt.Chart(yoy_df).mark_bar().encode(
                             x=alt.X('day_seq:N', title='LNY Day Sequence'),
                             y=alt.Y('yoy_pct:Q', title='YoY Change (%)', axis=alt.Axis(format='%')),
@@ -428,7 +428,7 @@ def main():
                             tooltip=['day_seq', 'metrics_current', 'metrics_prev', alt.Tooltip('yoy_diff', format='.2f'), alt.Tooltip('yoy_pct', format='.2%')]
                         ).properties(title=f'LNY YoY Change ({target_year} vs {target_year-1})')
                         st.altair_chart(yoy_chart, use_container_width=True)
-                        # 總 YoY 增減幅度 metric
+                        # Total YoY change metric
                         total_current = yoy_df['metrics_current'].sum()
                         total_prev = yoy_df['metrics_prev'].sum()
                         yoy_total_diff = total_current - total_prev
