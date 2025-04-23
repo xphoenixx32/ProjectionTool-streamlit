@@ -674,6 +674,7 @@ def main():
         
         # Create sliders for different effects
         with st.expander("Expand Settings", expanded=False):
+            # ❶ Lunar New Year Effect
             st.write('''
             ##### ❶ Lunar New Year Effect        
             ''')
@@ -683,13 +684,14 @@ def main():
                 key="lny_input_type",
                 default="Direct Input"
             )
-            
+            # Use unique key for each widget to avoid StreamlitDuplicateElementId error
             if lny_input_type == "Slider":
                 lny_effect = st.select_slider(
                     "---",
                     options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
                     value=0.00,
-                    format_func=lambda x: f"{x:+.2f}%"
+                    format_func=lambda x: f"{x:+.2f}%",
+                    key='lny_effect_slider'  # unique key
                 )
             else:
                 lny_effect = st.number_input(
@@ -698,9 +700,10 @@ def main():
                     max_value=30.00,
                     value=0.00,
                     step=0.01,
-                    format="%.2f"
+                    format="%.2f",
+                    key='lny_effect_input'  # unique key
                 )
-            
+            # ❷ BAU MoM Growth Effect
             st.write('''
             ##### ❷ BAU MoM Growth Effect        
             ''')
@@ -710,13 +713,13 @@ def main():
                 key="bau_mom_input_type",
                 default="Direct Input"
             )
-            
             if bau_mom_input_type == "Slider":
                 bau_mom_effect = st.select_slider(
                     "---",
                     options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
                     value=0.00,
-                    format_func=lambda x: f"{x:+.2f}%"
+                    format_func=lambda x: f"{x:+.2f}%",
+                    key='bau_mom_effect_slider'  # unique key
                 )
             else:
                 bau_mom_effect = st.number_input(
@@ -726,9 +729,9 @@ def main():
                     value=0.00,
                     step=0.01,
                     format="%.2f",
-                    key='bau_mom_effect'
+                    key='bau_mom_effect_input'  # unique key
                 )
-            
+            # ❸ Monthly Uplift Effect (of Date Type)
             st.write('''
             ##### ❸ Monthly Uplift Effect (of Date Type)       
             ''')
@@ -738,14 +741,13 @@ def main():
                 key="monthly_uplift_input_type",
                 default="Direct Input"
             )
-            
             if monthly_uplift_input_type == "Slider":
                 monthly_uplift = st.select_slider(
                     "---",
                     options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
                     value=0.00,
                     format_func=lambda x: f"{x:+.2f}%",
-                    key='monthly_uplift'
+                    key='monthly_uplift_slider'  # unique key
                 )
             else:
                 monthly_uplift = st.number_input(
@@ -755,9 +757,9 @@ def main():
                     value=0.00,
                     step=0.01,
                     format="%.2f",
-                    key='monthly_uplift'
+                    key='monthly_uplift_input'  # unique key
                 )
-            
+            # ❹ Quarterly Uplift Effect (of Date Type)
             st.write('''
             ##### ❹ Quarterly Uplift Effect (of Date Type)       
             ''')
@@ -767,14 +769,13 @@ def main():
                 key="quarterly_uplift_input_type",
                 default="Direct Input"
             )
-            
             if quarterly_uplift_input_type == "Slider":
                 quarterly_uplift = st.select_slider(
                     "---",
                     options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
                     value=0.00,
                     format_func=lambda x: f"{x:+.2f}%",
-                    key='quarterly_uplift'
+                    key='quarterly_uplift_slider'  # unique key
                 )
             else:
                 quarterly_uplift = st.number_input(
@@ -784,9 +785,9 @@ def main():
                     value=0.00,
                     step=0.01,
                     format="%.2f",
-                    key='quarterly_uplift'
+                    key='quarterly_uplift_input'  # unique key
                 )
-            
+            # ❺ Additional Effect
             st.write('''
             ##### ❺ Additional Effect    
             ''')
@@ -796,14 +797,13 @@ def main():
                 key="additional_input_type",
                 default="Direct Input"
             )
-            
             if additional_input_type == "Slider":
                 additional_input = st.select_slider(
                     "---",
                     options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
                     value=0.00,
                     format_func=lambda x: f"{x:+.2f}%",
-                    key='additional_input'
+                    key='additional_input_slider'  # unique key
                 )
             else:
                 additional_input = st.number_input(
@@ -813,9 +813,9 @@ def main():
                     value=0.00,
                     step=0.01,
                     format="%.2f",
-                    key='additional_input'
+                    key='additional_input_input'  # unique key
                 )
-        
+
         # Calculate total effect
         total_effect_pct = lny_effect + bau_mom_effect + monthly_uplift + quarterly_uplift + additional_input
         projected_value = baseline * (1 + total_effect_pct / 100)
