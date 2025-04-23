@@ -119,7 +119,7 @@ def main():
             available_years = sorted(data['year'].unique())
             max_year = min(2025, max(available_years))
             target_year = st.selectbox(
-                "collapsed",
+                "---",
                 options=list(range(min(available_years), max_year + 1)),
                 index=len(list(range(min(available_years), max_year + 1))) - 1  # Default to latest year
             )
@@ -686,7 +686,7 @@ def main():
             
             if lny_input_type == "Slider":
                 lny_effect = st.select_slider(
-                    "collapsed",
+                    "---",
                     options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
                     value=0.00,
                     format_func=lambda x: f"{x:+.2f}%"
@@ -713,7 +713,7 @@ def main():
             
             if bau_mom_input_type == "Slider":
                 bau_mom_effect = st.select_slider(
-                    "collapsed",
+                    "---",
                     options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
                     value=0.00,
                     format_func=lambda x: f"{x:+.2f}%"
@@ -741,7 +741,7 @@ def main():
             
             if monthly_uplift_input_type == "Slider":
                 monthly_uplift = st.select_slider(
-                    "collapsed",
+                    "---",
                     options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
                     value=0.00,
                     format_func=lambda x: f"{x:+.2f}%",
@@ -770,7 +770,7 @@ def main():
             
             if quarterly_uplift_input_type == "Slider":
                 quarterly_uplift = st.select_slider(
-                    "collapsed",
+                    "---",
                     options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
                     value=0.00,
                     format_func=lambda x: f"{x:+.2f}%",
@@ -799,7 +799,7 @@ def main():
             
             if additional_input_type == "Slider":
                 additional_input = st.select_slider(
-                    "collapsed",
+                    "---",
                     options=[float(f"{-30.00 + i * 0.1:.1f}") for i in range(601)],  # -30% to +30% in 0.1% increments
                     value=0.00,
                     format_func=lambda x: f"{x:+.2f}%",
