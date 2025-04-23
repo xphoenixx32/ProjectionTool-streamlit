@@ -113,7 +113,7 @@ def main():
             data = st.session_state.data
             
             # Year selection
-            st.subheader("🔎 Select Year for Metrics Analysis")
+            st.subheader("- Select Year for Metrics Analysis")
             
             # Year input for projection
             available_years = sorted(data['year'].unique())
@@ -137,7 +137,7 @@ def main():
             if projection_data.empty:
                 st.error(f"❌ No data available for {target_year} and the previous year")
             else:
-                st.subheader(f"🪄 Metrics Analysis of {target_year}")
+                st.subheader(f"- Metrics Analysis of {target_year}")
                 
                 # Create option menu for different projection steps
                 selected_option = option_menu(
