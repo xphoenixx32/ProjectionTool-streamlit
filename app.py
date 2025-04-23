@@ -113,7 +113,7 @@ def main():
             data = st.session_state.data
             
             # Year selection
-            st.warning("Select Year for Metrics Analysis")
+            st.subheader("🔎 Select Year for Metrics Analysis")
             
             # Year input for projection
             available_years = sorted(data['year'].unique())
