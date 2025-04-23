@@ -25,7 +25,7 @@ st.set_page_config(
 )
 
 def main():
-    st.title("🤖 Projection Automation Tool")
+    st.title("Projection Automation Tool")
     st.write('---')
     
     # Set up sidebar navigation
