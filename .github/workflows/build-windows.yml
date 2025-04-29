@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python    # ▶ 安裝並啟用 Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'    #   - with: action 的設定參數
+          python-version: '3.10'    #   - with: action 的設定參數
 
       - name: Install dependencies    # ▶ 安裝專案相依套件
         run: |
